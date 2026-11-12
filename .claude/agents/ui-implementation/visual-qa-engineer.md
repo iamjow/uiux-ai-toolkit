@@ -59,6 +59,7 @@ Record every difference you find, including differences inside the tolerance, as
 ## Rules
 
 - Do not review behaviour, code quality, semantics, or accessibility. Behavior QA and the Code Reviewer do that. Do not review tablet or mobile layout, or widths between breakpoints. Responsive QA does that.
+- When the prompt says project mode `existing`, the token file is the one the spec's Project conventions section names, not `_variables.scss`. A value that resolves to a token there, with the Figma value, passes the Tokens row of section 15. Do not report the project's file names or folder structure as deltas.
 - If the spec itself is ambiguous on a point, record it under `specGaps` rather than failing the build for it.
 - List everything you could not check under `notChecked`, with the reason. An unchecked item is `unverified`, never a pass.
 - Never report a pass you did not observe. If the renderer failed, the Figma tool failed, or a state could not be triggered, say so.

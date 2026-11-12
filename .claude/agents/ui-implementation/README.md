@@ -95,14 +95,15 @@ Design source (desktop): <figmaUrl>
 PNG reference: <pngPath>
 Breakpoints: desktop <w>px, source <design source> | tablet <w>px, source <figma url, png, or "derived"> | mobile <w>px, source <figma url, png, or "derived">
 Target: <target, for example build/<kebab-frame-name>/>
-Design spec: <specPath, default .claude/design-spec.md>
+Project mode: <new | existing>
+Design spec: <specPath, default .ui-run/<name>/design-spec.md>
 Development standard: <standardsDir>/uiux-development-standard.md
 Review standard: <standardsDir>/uiux-code-review-standard.md
 Dev server: <url, or "none, static method">
 Caps: 3 QA passes, 3 review rounds
 ```
 
-Prerequisites are the same as for `/build-ui`: `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` in `.claude/settings.local.json`, `SendMessage` and `ListAgents` loaded with ToolSearch, and the task tools loaded for shared mode (file mode uses `.claude/team-tasks.md`, written only by the lead).
+Prerequisites are the same as for `/build-ui`: `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` in `.claude/settings.local.json`, `SendMessage` and `ListAgents` loaded with ToolSearch, and the task tools loaded for shared mode (file mode uses `.ui-run/<name>/team-tasks.md`, written only by the lead).
 
 ## Report
 
@@ -116,6 +117,25 @@ Prerequisites are the same as for `/build-ui`: `CLAUDE_CODE_EXPERIMENTAL_AGENT_T
 - **Files changed** as clickable paths, and a one-line-per-decision team log.
 - **Next step**: the user reviews the diff, then commits and opens the PR. The team never commits.
 
-Outputs land in `build/<frame>/` (the source of truth for converted UIs) and `.claude/design-spec.md`.
+Outputs land in `build/<frame>/` (the source of truth for converted UIs) and `.ui-run/<name>/design-spec.md`.
 This team is run by the `/build-ui` command (`.claude/skills/build-ui/SKILL.md`), which is
 both the command and the lead's playbook. It uses these six agents and no others.
+
+## Project mode
+
+The same six agents run in one of two modes, set by the command and written in every spawn
+brief as `Project mode: <new | existing>`.
+
+| Command | Mode | Use it for | Output |
+|---|---|---|---|
+| `/build-ui` | `new` | A standalone UI built to the development standard in full | `build/<frame>/` |
+| `/update-ui` | `existing` | A page, section, or component inside a project that has its own conventions | The project's own files, edited in place |
+
+In mode `existing` the analyst records the project's token file, breakpoint approach, and
+responsive-style location in a Project conventions section of the spec. The developer
+follows those instead of creating `styles/`, `_variables.scss`, or `responsive/`, and stays
+inside the scope the command gives. Visual QA, Responsive QA, and the reviewer judge tokens
+and responsive placement against the project's conventions. Markup, accessibility,
+behaviour, and fidelity rules are the same in both modes. `/update-ui`
+(`.claude/skills/update-ui/SKILL.md`) holds only the differences and follows the
+`/build-ui` playbook for everything else.

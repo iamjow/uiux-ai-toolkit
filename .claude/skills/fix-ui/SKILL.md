@@ -26,7 +26,7 @@ Arguments: `$ARGUMENTS`
 1. Read `REPORT` in full. Note the Target and its commit, the framework, the verdict, every finding (ID, severity, rule, requirement, locations, evidence, recommendation), the "Needs confirmation" items, and the "Manual checks".
 2. Resolve `TARGET` to an absolute path and confirm it exists. If the report's Target is not an existing path and no `--target` was given, ask for it and stop.
 3. Read [playbook.md](playbook.md) in full.
-4. Read `uiux-development-standard.md` in full; it describes the end state. Read `.claude/skills/validate-ui/rubric.md` §2 and §3. Open sections of `uiux-code-review-standard.md` as individual findings cite them.
+4. Read `.claude/standards/uiux-development-standard.md` in full; it describes the end state. Read `.claude/skills/validate-ui/rubric.md` §2 and §3. Open sections of `.claude/standards/uiux-code-review-standard.md` as individual findings cite them.
 
 ## 3. Prepare a safe workspace
 

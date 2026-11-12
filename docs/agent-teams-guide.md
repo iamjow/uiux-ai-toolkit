@@ -735,7 +735,7 @@ Validates frontend code delivered by other teams (for example the Team Store app
 
 | File | Role |
 |---|---|
-| `uiux-development-standard.md`, `uiux-code-review-standard.md` | Source of truth. Agents read these; rules are never copied. |
+| `.claude/standards/uiux-development-standard.md`, `.claude/standards/uiux-code-review-standard.md` | Source of truth. Agents read these; rules are never copied. |
 | `.claude/skills/validate-ui/SKILL.md` | Orchestrator: `/validate-ui <path>` |
 | `.claude/skills/validate-ui/rubric.md` | Shared rubric: interpretations, severity, R1–R15 gate, output format |
 | `.claude/agents/prototype-validation/stack-validator.md` | Tech stack, separation, JavaScript, browser support |

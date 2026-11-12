@@ -24,16 +24,18 @@ You are the team lead. You spawn the team, put the work on the shared task list,
   - `--png <path>`: PNG reference of the desktop mockup, used alongside a Figma URL. Check that the file exists.
   - `--server <url>`: dev server URL for rendered QA checks
   - `--standards <dir>`: folder holding `uiux-development-standard.md` and `uiux-code-review-standard.md`
-  - `--spec <path>`: where the design spec is written. Default `.claude/design-spec.md`.
+  - `--spec <path>`: where the design spec is written. Default `.ui-run/<name>/design-spec.md`.
 
 ## 2. Resolve defaults and prerequisites
 
 - **Team.** This process uses only the agents defined in `.claude/agents/ui-implementation/`: mockup-analyst, ui-developer, visual-qa-engineer, behavior-qa-engineer, responsive-qa-engineer, ui-code-reviewer. Confirm all six files exist there with Glob. If any is missing, tell the user which one and stop. Do not substitute any other agent, including agents defined elsewhere under `.claude/agents/`.
+- **Project mode.** `/build-ui` runs in project mode `new`: a standalone UI built to the development standard in full. `/update-ui` runs this same playbook in project mode `existing` and states its own differences. Write the mode in every spawn brief.
+- **Run folder.** The spec, the fidelity report, and the file-mode task list are run-time files and live in `.ui-run/<name>/` at the project root, never in `.claude/`. `<name>` is the run name: the last folder of the build location in kebab-case (`build/clr-0/` gives `clr-0`), or, when the target is a file, its base name without the extension. One folder per build keeps each build's spec and report; running the same build again overwrites only its own folder. `--spec` moves the spec only; the report and the task list stay in `.ui-run/<name>/`. Tell the user the run folder in one line. Run `git check-ignore -q .ui-run/` in a git project; if it is not ignored, tell the user in one line to add `.ui-run/` to `.gitignore`, and continue.
 - **Breakpoint list.** Build it from `--breakpoints` or the default: `desktop <w>`, `tablet <w>`, `mobile <w>`. Attach the source to each: the design source for desktop, `--tablet` and `--mobile` for the others, `derived` for a breakpoint with no source. Tell the user in one line which breakpoints have a frame and which will be derived from section 8 of the development standard. Every breakpoint is built and checked either way.
 - **Agent Teams.** Run `echo $CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS`. If it is not `1`, tell the user to add `"env": {"CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1"}` to `.claude/settings.local.json`, start a new session, and run the command again. Stop. Never fall back to a scripted workflow.
 - **Messaging tools.** Load `SendMessage` and `ListAgents` with ToolSearch (`select:SendMessage,ListAgents`).
-- **Shared task list.** Load the task tools with ToolSearch (`select:TaskCreate,TaskList,TaskUpdate,TaskGet`). If they load, the team uses the shared task list. If they do not, tell the user in one line that adding `"CLAUDE_CODE_ENABLE_TODO_TOOLS": "1"` and `"CLAUDE_CODE_ENABLE_TASKS": "1"` to the same `env` block enables the shared list (the VS Code extension sets the second one to `0`), then continue in **file mode**: you keep the list in `.claude/team-tasks.md` (one line per task: id, title, owner, status, blocked-by), only you write to it, and teammates report status to you by message instead of updating tasks. Say in the spawn brief which mode is in use.
-- **Standards dir.** If `--standards` is absent, locate `uiux-development-standard.md` with Glob and use its folder. If it is not in the project, tell the user the standards must be copied in and stop.
+- **Shared task list.** Load the task tools with ToolSearch (`select:TaskCreate,TaskList,TaskUpdate,TaskGet`). If they load, the team uses the shared task list. If they do not, tell the user in one line that adding `"CLAUDE_CODE_ENABLE_TODO_TOOLS": "1"` and `"CLAUDE_CODE_ENABLE_TASKS": "1"` to the same `env` block enables the shared list (the VS Code extension sets the second one to `0`), then continue in **file mode**: you keep the list in `.ui-run/<name>/team-tasks.md` (one line per task: id, title, owner, status, blocked-by), only you write to it, and teammates report status to you by message instead of updating tasks. Say in the spawn brief which mode is in use.
+- **Standards dir.** If `--standards` is absent, use `.claude/standards/` when it holds `uiux-development-standard.md`; otherwise locate that file with Glob and use its folder. If it is not in the project, tell the user the standards must be copied in and stop.
 - **Dev server.** If `--server` is absent, probe the project's usual ports with a short curl: Vite (5173), Laravel (8000), and whatever `vite.config` or `.env` names. Use the first URL that responds. If none responds, say in one line that the QA checks will use the static method, and continue without a server.
 - **Figma.** If any source is a Figma URL, confirm it includes a `node-id`. If not, ask the user to copy the link with the frame selected, and stop.
 - **Caps.** QA gate: at most 3 QA passes per gate (so at most 2 fix passes). Review gate: at most 3 review rounds (so at most 2 review fix rounds).
@@ -88,6 +90,7 @@ Design source (desktop): <figmaUrl or pngPath>
 PNG reference: <pngPath, or "none">
 Breakpoints: desktop <w>px, source <design source> | tablet <w>px, source <--tablet value, or "derived"> | mobile <w>px, source <--mobile value, or "derived">
 Target: <target>
+Project mode: <new | existing>
 Design spec: <specPath>
 Development standard: <standardsDir>/uiux-development-standard.md
 Review standard: <standardsDir>/uiux-code-review-standard.md
@@ -134,7 +137,7 @@ Send each live teammate a `shutdown_request` by name, confirm with `ListAgents` 
 
 ## 8. Report the result
 
-Write the QA result to `.claude/fidelity-report.md` first, so it survives the session: verdict on the first line (`PIXEL-PERFECT`, `MATCHES WITHIN TOLERANCE`, or `DOES NOT MATCH`), the comparison method for each QA engineer, the breakpoint list with each one's source, a table of every visual delta, every responsive delta (with its breakpoint), and every behaviour issue (blocking first; columns Breakpoint, Area, Expected, Actual, Severity, File), then spec gaps and not-checked items. Never drop an item.
+Write the QA result to `.ui-run/<name>/fidelity-report.md` first, so it survives the session: verdict on the first line (`PIXEL-PERFECT`, `MATCHES WITHIN TOLERANCE`, or `DOES NOT MATCH`), the comparison method for each QA engineer, the breakpoint list with each one's source, a table of every visual delta, every responsive delta (with its breakpoint), and every behaviour issue (blocking first; columns Breakpoint, Area, Expected, Actual, Severity, File), then spec gaps and not-checked items. Never drop an item.
 
 Then report for the user:
 
@@ -144,7 +147,7 @@ Then report for the user:
 - **Behaviour match**, from the latest behaviour verdict, the same way: every open issue, blocking first.
 - **Unverified**: every `notChecked` item from all three QA engineers with its reason, and each engineer's method (`rendered` or `static`, with a static result called out as weaker evidence). Then `specGaps` from all three, so the reader knows what the comparison did not cover.
 - **Files changed**, as a list of clickable paths. Converted UIs live in `build/<frame>/`; tell the user to open its `index.html` to see the UI.
-- **Match report file**: the path to `.claude/fidelity-report.md`.
+- **Match report file**: the path to `.ui-run/<name>/fidelity-report.md`.
 - **Review**: advisory Medium and Low findings, each as Finding and Recommendation in one or two lines.
 - **Disputed** findings the developer declined, with its reason, so the user can rule on them.
 - **Open spec questions** from the analyst, including any breakpoint that was derived because no frame was passed.

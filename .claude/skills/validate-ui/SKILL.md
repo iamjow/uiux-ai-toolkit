@@ -15,8 +15,8 @@ Target: `$ARGUMENTS`
 1. If no target path was given, ask for it and stop.
 2. Resolve to absolute paths:
    - `TARGET`: the delivered project.
-   - `DEV`: `uiux-development-standard.md` at the root of this repo.
-   - `REVIEW`: `uiux-code-review-standard.md` at the root of this repo.
+   - `DEV`: `.claude/standards/uiux-development-standard.md` in this repo.
+   - `REVIEW`: `.claude/standards/uiux-code-review-standard.md` in this repo.
    - `RUBRIC`: `.claude/skills/validate-ui/rubric.md` in this repo.
 3. Confirm all four exist. Read `RUBRIC` in full; you apply sections 3 and 4 yourself in step 5.
 4. Record versions for the report: the commit of `TARGET` (`git -C "$TARGET" rev-parse --short HEAD`, or "not a git repository") and the commit of this repo, so the report says which delivery was checked against which version of the standards.

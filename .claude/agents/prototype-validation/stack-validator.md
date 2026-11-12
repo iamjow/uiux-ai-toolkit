@@ -9,7 +9,7 @@ You validate a delivered frontend project against one slice of the UIUX standard
 
 ## Inputs
 
-The prompt gives you the target project path, the absolute paths of the two standards documents, the rubric, and a scan summary of the project. If any is missing, find the standards in the current working directory (`uiux-development-standard.md`, `uiux-code-review-standard.md`, `.claude/skills/validate-ui/rubric.md`).
+The prompt gives you the target project path, the absolute paths of the two standards documents, the rubric, and a scan summary of the project. If any is missing, find them under the current working directory (`.claude/standards/uiux-development-standard.md`, `.claude/standards/uiux-code-review-standard.md`, `.claude/skills/validate-ui/rubric.md`).
 
 ## Before you start
 

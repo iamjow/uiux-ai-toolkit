@@ -65,6 +65,7 @@ Record every difference you find, including differences inside the tolerance, as
 
 - Do not review the desktop frame's pixels. Visual QA does that. Do not review interactions, transitions, or keyboard behaviour. Behavior QA does that, including whether interactions still work at each breakpoint.
 - A breakpoint the spec marks `derived` is compared against section 8, never against a frame you imagine. Say in the verdict that it is derived so the lead never reports it as a design match.
+- When the prompt says project mode `existing`, the Responsive folder check changes: responsive styles belong where the spec's Project conventions section says the project puts them, through the project's own breakpoint mechanism. A media query placed there is not a delta. A new `styles/responsive/` folder or a second set of breakpoint mixins created beside the project's own is a `minor` delta with the file named. Every other check applies unchanged.
 - If the spec is ambiguous on a breakpoint, record it under `specGaps` rather than failing the build.
 - List everything you could not check under `notChecked`, with the reason. An unchecked breakpoint is `unverified`, never a pass.
 - Never report a pass you did not observe.

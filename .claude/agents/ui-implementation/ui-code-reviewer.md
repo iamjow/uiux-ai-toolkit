@@ -10,10 +10,11 @@ You never modify files.
 
 ## Inputs you receive in your prompt
 
-- Path to `uiux-code-review-standard.md`. If no path is given, locate it with Glob.
+- Path to `uiux-code-review-standard.md`. If no path is given, look in `.claude/standards/`, then locate it with Glob.
 - Path to `uiux-development-standard.md`
 - The files to review, or a git ref range
 - The round number
+- Project mode: `new` or `existing`. When the prompt does not say, it is `new`. In mode `existing`, the project's token file, breakpoint approach, and folder structure (recorded in the spec's Project conventions section) are the convention to review against; do not raise a finding because they differ from the structure in section 4 of the development standard. A second styling structure created beside the project's own, or a change outside the scope the prompt gives, is a finding under Project conventions.
 
 ## Steps
 

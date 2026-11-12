@@ -4,6 +4,15 @@ The agent team automates the Figma-to-code process: a design goes in, implemente
 
 The team lives in `.claude/agents/ui-implementation/`. The process lives in `.claude/skills/build-ui/SKILL.md`, which is both the command and the team lead's playbook.
 
+Two commands run the same team:
+
+| Command | Project mode | Use it for | Output |
+|---|---|---|---|
+| `/build-ui` | `new` | A standalone UI built to the development standard in full | `build/<frame>/` |
+| `/update-ui` | `existing` | A page, section, or component inside a project that has its own conventions | The project's own files, edited in place |
+
+`/update-ui` (`.claude/skills/update-ui/SKILL.md`) holds only its differences and follows the `/build-ui` playbook for everything else.
+
 ---
 
 ## Shape
@@ -36,7 +45,7 @@ Figma desktop frame (+ PNG) + mobile / tablet frames from their own sections
 analyst ──► design spec file ◄── developer and QA ask, analyst answers and updates
     │
     ▼
-developer (build, every breakpoint) ◄── uiux-development-standard.md
+developer (build, every breakpoint) ◄── uiux-development-standard.md (+ project conventions in mode `existing`)
     │  "ready for validation"
     ├──────────────┬───────────────┐
     ▼              ▼               ▼
@@ -106,7 +115,7 @@ Medium and Low findings never block. They are returned as advisory for the human
 
 ## Running it
 
-From a Claude Code session in the target project, with these standards available in the project (copied, submoduled, or pointed to with `--standards`):
+From a Claude Code session in the target project, with the `.claude/` folder of this repo copied into the project (it holds the skills, the agents, and the two standards in `.claude/standards/`; a different standards folder can be given with `--standards`):
 
 ```
 /build-ui <figma-url | image-path> <what to build and where> [--mobile <figma-url | image-path>] [--tablet <figma-url | image-path>] [--breakpoints <desktop>,<tablet>,<mobile>] [--png <path>] [--server <url>] [--standards <dir>] [--spec <path>]
@@ -120,19 +129,25 @@ Examples:
 /build-ui design/checkout-card.png Checkout summary card component in build/checkout-card/ --mobile design/checkout-card-mobile.png
 ```
 
+To update a page, section, or component inside an existing project, use `/update-ui` instead. It takes the same arguments and runs the same team and gates in project mode `existing`: the target must be an existing file or directory, the project's own token file, breakpoint approach, and folder structure are followed, and nothing outside the named scope is edited.
+
+```
+/update-ui https://www.figma.com/design/ABC123/App?node-id=45-678 update the hero section of the Pricing page at resources/js/pages/Pricing.vue --mobile https://www.figma.com/design/ABC123/App?node-id=91-204 --server http://localhost:8000
+```
+
 The desktop frame is the first argument. The mobile and tablet frames live in their own Figma sections, so select each one in Figma, copy its link, and pass it with `--mobile` or `--tablet`. There is no need to copy the frames into the desktop section. A PNG export works in place of a URL, with values marked `estimated`. A breakpoint with no frame is still built and checked, from the section 8 defaults, and reported as derived.
 
 | Input | Required | Default | Purpose |
 |---|---|---|---|
 | Figma URL | one of the two | | Figma design URL including `node-id` |
 | Image path | one of the two | | Mockup image when there is no Figma file. Values are extracted with reduced confidence and marked `estimated`. |
-| Target | yes | | What to build and where. Converted UIs go in `build/<frame>/`. |
+| Target | yes | | What to build and where. With `/build-ui`, converted UIs go in `build/<frame>/`. With `/update-ui`, an existing file or directory, plus the section to change when it is not the whole page. |
 | `--mobile` | no | derived | The mobile frame: Figma URL with `node-id`, or PNG path |
 | `--tablet` | no | derived | The tablet frame: Figma URL with `node-id`, or PNG path |
 | `--breakpoints` | no | `1440,768,375` | Viewport widths for desktop, tablet, mobile; a Figma frame's real width overrides its entry |
 | `--png` | no | none | PNG reference of the desktop mockup, used alongside a Figma URL |
-| `--standards` | no | `.` | Folder containing the two standard files |
-| `--spec` | no | `.claude/design-spec.md` | Where the analyst writes the spec |
+| `--standards` | no | `.claude/standards/` | Folder containing the two standard files |
+| `--spec` | no | `.ui-run/<name>/design-spec.md` | Where the analyst writes the spec |
 | `--server` | no | none | A running app so the QA engineers can render and drive the page. Without it they fall back to a static comparison and say so. |
 
 Caps are fixed at 3 QA passes per gate and 3 review rounds.
@@ -146,10 +161,12 @@ The team never commits or opens a pull request. The run ends in one of four stat
 
 ### Outputs
 
-- `build/<frame>/` in the repo: the source of truth for every converted UI. Open its `index.html` to see the result.
-- `.claude/design-spec.md`: the spec the build was made from.
-- `.claude/fidelity-report.md`: whether the UI matches the mockup at every breakpoint and behaves as designed, every unmatched item, and what was not checked.
-- `.claude/team-tasks.md`: the task list, only when the shared task list tools are unavailable.
+- `/build-ui`: `build/<frame>/` in the repo, the source of truth for every converted UI. Open its `index.html` to see the result.
+- `/update-ui`: the project's own files, edited in place. The report names the page or route to open on the dev server, and lists any file changed outside the named scope.
+- `.ui-run/<name>/`: one git-ignored folder per build, named after it (`build/clr-0/` pairs with `.ui-run/clr-0/`; an update to `Pricing.vue` writes to `.ui-run/pricing/`). Running the same build again overwrites only its own folder.
+- `.ui-run/<name>/design-spec.md`: the spec the build was made from. In project mode `existing` it carries a Project conventions section: the project's token file, breakpoint approach, and where responsive styles live.
+- `.ui-run/<name>/fidelity-report.md`: whether the UI matches the mockup at every breakpoint and behaves as designed, every unmatched item, and what was not checked.
+- `.ui-run/<name>/team-tasks.md`: the task list, only when the shared task list tools are unavailable.
 
 ### Using agents on their own
 
@@ -160,12 +177,13 @@ Each agent also works outside the team. Mention it by name in a Claude Code sess
 ## Requirements
 
 - **Agent Teams enabled.** `.claude/settings.local.json` must contain `"env": {"CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1"}`. The feature is experimental and needs an interactive session; under `claude -p` named spawns run as plain subagents and no team forms.
-- **Shared task list tools.** On current models the `TaskCreate`, `TaskList`, `TaskUpdate`, and `TaskGet` tools are off by default. Add `"CLAUDE_CODE_ENABLE_TODO_TOOLS": "1"` to the same `env` block. The VS Code extension also launches Claude Code with `CLAUDE_CODE_ENABLE_TASKS=0`, which swaps the shared list for a private TodoWrite; add `"CLAUDE_CODE_ENABLE_TASKS": "1"` to the env block to override it. Without both, the lead keeps the task list in `.claude/team-tasks.md` and teammates coordinate by message only, which works but loses self-claiming.
-- **Session restart after edits.** Agent definitions and skills load when a session starts. After editing anything in `.claude/agents` or `.claude/skills`, start a new session before running `/build-ui`.
+- **Shared task list tools.** On current models the `TaskCreate`, `TaskList`, `TaskUpdate`, and `TaskGet` tools are off by default. Add `"CLAUDE_CODE_ENABLE_TODO_TOOLS": "1"` to the same `env` block. The VS Code extension also launches Claude Code with `CLAUDE_CODE_ENABLE_TASKS=0`, which swaps the shared list for a private TodoWrite; add `"CLAUDE_CODE_ENABLE_TASKS": "1"` to the env block to override it. Without both, the lead keeps the task list in `.ui-run/<name>/team-tasks.md` and teammates coordinate by message only, which works but loses self-claiming.
+- **Session restart after edits.** Agent definitions and skills load when a session starts. After editing anything in `.claude/agents` or `.claude/skills`, start a new session before running `/build-ui` or `/update-ui`.
 - **Figma access.** Agents that must reach the Figma connector (`mockup-analyst`, `visual-qa-engineer`, `behavior-qa-engineer`, `responsive-qa-engineer`) have no `tools:` whitelist. A whitelist hides the connector's tools from the agent, and in the current build it also drops Glob, Grep, and ToolSearch. Their read-only behaviour is enforced by instruction, not by tool restriction.
 - The Figma MCP connector, authorized in Claude Code. Without it the analyst reports a blocker, or extracts from a supplied image with reduced confidence.
 - For rendered QA: a running dev server and Playwright or Puppeteer available in the project. Without them the QA engineers use the static method.
-- The two standard files reachable from the project.
+- The two standard files in `.claude/standards/`, or in the folder given with `--standards`.
+- **For `/update-ui`:** the `build-ui` skill beside the `update-ui` skill, since it follows that playbook. A running dev server is strongly advised, because a page inside a real project usually cannot be opened as a static file.
 - **Cost.** Each teammate is a separate Claude instance. A full run spawns six. The lead spawns the reviewer only after the QA gate passes so it is not idling during analysis and build.
 
 ## History
@@ -173,3 +191,5 @@ Each agent also works outside the team. Mention it by name in a Claude Code sess
 Until 2026-10-15 this process ran as a scripted Workflow (`figma-to-ui.js`), with the gates decided in code. It was replaced by the Agent Teams model so the lead can coordinate live, teammates can message each other, and the task list is visible while the run is in progress. The retired script is kept at `.claude/workflows/retired/figma-to-ui.js` for reference and is not registered as a workflow.
 
 Until 2026-10-26 the team was the six-agent "design to UI implementation" team (extractor, builder, fidelity validator, three code reviewers with a verifier, packager) in `.claude/agents/design-to-ui-implementation/`. It was replaced by the UI implementation team, which splits fidelity QA into visual, behaviour, and responsive engineers, uses one code reviewer, takes the mobile and tablet frames as explicit inputs, and keeps the delivered UI in `build/<frame>/` instead of a Desktop delivery folder.
+
+On 2026-11-12 the `/update-ui` command was added. It runs the same six agents in project mode `existing`, so a page or section in a project with its own conventions can be updated without creating the `styles/` structure the development standard describes for new projects.
