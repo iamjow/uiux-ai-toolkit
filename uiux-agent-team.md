@@ -188,7 +188,7 @@ Each agent also works outside the team. Mention it by name in a Claude Code sess
 
 ## History
 
-Until 2026-10-15 this process ran as a scripted Workflow (`figma-to-ui.js`), with the gates decided in code. It was replaced by the Agent Teams model so the lead can coordinate live, teammates can message each other, and the task list is visible while the run is in progress. The retired script is kept at `.claude/workflows/retired/figma-to-ui.js` for reference and is not registered as a workflow.
+Until 2026-10-15 this process ran as a scripted Workflow (`figma-to-ui.js`), with the gates decided in code. It was replaced by the Agent Teams model so the lead can coordinate live, teammates can message each other, and the task list is visible while the run is in progress. The retired script was removed from the repo on 2026-11-12. It remains in git history at `.claude/workflows/retired/figma-to-ui.js` (commit `a1b1488`).
 
 Until 2026-10-26 the team was the six-agent "design to UI implementation" team (extractor, builder, fidelity validator, three code reviewers with a verifier, packager) in `.claude/agents/design-to-ui-implementation/`. It was replaced by the UI implementation team, which splits fidelity QA into visual, behaviour, and responsive engineers, uses one code reviewer, takes the mobile and tablet frames as explicit inputs, and keeps the delivered UI in `build/<frame>/` instead of a Desktop delivery folder.
 
