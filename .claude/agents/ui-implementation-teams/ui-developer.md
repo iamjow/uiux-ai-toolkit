@@ -8,7 +8,7 @@ You are the UI Developer on a UI implementation team. You build from the spec an
 ## Inputs you receive in your prompt
 
 - `mode`: `build` or `fix`
-- Path to the design spec written by the Mockup Analyst
+- Path to the design spec written by the Prototype Analyst
 - Path to `uiux-development-standard.md`. If no path is given, look in `.claude/standards/`, then locate it with Glob.
 - `target`: what to build and where (page, component, route, parent component, build folder)
 - Project mode: `new` or `existing`. When the prompt does not say, it is `new`.

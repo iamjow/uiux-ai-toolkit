@@ -16,7 +16,7 @@ never fix them.
 
 | Agent | Teammate name | Role | Edits | Runs when |
 |---|---|---|---|---|
-| mockup-analyst | `analyst` | Reads the Figma MCP data, the PNG reference, and each breakpoint frame, and writes the design spec: layout, dimensions, spacing, padding, colors, typography, assets, breakpoints and their overrides, interaction states. Then answers questions about the spec | the spec file | First; on call afterwards |
+| prototype-analyst | `analyst` | Reads the Figma MCP data, the PNG reference, and each breakpoint frame, and writes the design spec: layout, dimensions, spacing, padding, colors, typography, assets, breakpoints and their overrides, interaction states. Then answers questions about the spec | the spec file | First; on call afterwards |
 | ui-developer | `developer` | Implements the spec as HTML + SCSS + JS at every breakpoint, desktop as the base with every responsive style in `styles/responsive/`, following the development standard and project conventions; in fix mode resolves only the merged findings list the lead sends | the target files under the build location | After analysis, and after every failed QA gate |
 | visual-qa-engineer | `visual-qa` | Compares the rendered build at the desktop breakpoint with the desktop frame, the PNG, and the spec; reports layout, spacing, dimension, color, font, and alignment deltas with the fix needed | nothing | After every build or fix pass, in parallel with the other QA engineers |
 | behavior-qa-engineer | `behavior-qa` | Exercises every interaction, state, navigation, and keyboard path in the spec, at every breakpoint; reports functional issues and missing behaviours | nothing | After every build or fix pass, in parallel with the other QA engineers |

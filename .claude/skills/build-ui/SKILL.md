@@ -28,7 +28,7 @@ You are the team lead. You spawn the team, put the work on the shared task list,
 
 ## 2. Resolve defaults and prerequisites
 
-- **Team.** This process uses only the agents defined in `.claude/agents/ui-implementation/`: mockup-analyst, ui-developer, visual-qa-engineer, behavior-qa-engineer, responsive-qa-engineer, ui-code-reviewer. Confirm all six files exist there with Glob. If any is missing, tell the user which one and stop. Do not substitute any other agent, including agents defined elsewhere under `.claude/agents/`.
+- **Team.** This process uses only the agents defined in `.claude/agents/ui-implementation-teams/`: prototype-analyst, ui-developer, visual-qa-engineer, behavior-qa-engineer, responsive-qa-engineer, ui-code-reviewer. Confirm all six files exist there with Glob. If any is missing, tell the user which one and stop. Do not substitute any other agent, including agents defined elsewhere under `.claude/agents/`.
 - **Project mode.** `/build-ui` runs in project mode `new`: a standalone UI built to the development standard in full. `/update-ui` runs this same playbook in project mode `existing` and states its own differences. Write the mode in every spawn brief.
 - **Run folder.** The spec, the fidelity report, and the file-mode task list are run-time files and live in `.ui-run/<name>/` at the project root, never in `.claude/`. `<name>` is the run name: the last folder of the build location in kebab-case (`build/clr-0/` gives `clr-0`), or, when the target is a file, its base name without the extension. One folder per build keeps each build's spec and report; running the same build again overwrites only its own folder. `--spec` moves the spec only; the report and the task list stay in `.ui-run/<name>/`. Tell the user the run folder in one line. Run `git check-ignore -q .ui-run/` in a git project; if it is not ignored, tell the user in one line to add `.ui-run/` to `.gitignore`, and continue.
 - **Breakpoint list.** Build it from `--breakpoints` or the default: `desktop <w>`, `tablet <w>`, `mobile <w>`. Attach the source to each: the design source for desktop, `--tablet` and `--mobile` for the others, `derived` for a breakpoint with no source. Tell the user in one line which breakpoints have a frame and which will be derived from section 8 of the development standard. Every breakpoint is built and checked either way.
@@ -44,7 +44,7 @@ You are the team lead. You spawn the team, put the work on the shared task list,
 
 | Teammate name | Agent type | Owns (the only files it edits) | Talks to |
 |---|---|---|---|
-| `analyst` | mockup-analyst | the spec file | `team-lead`, `developer`, `visual-qa`, `behavior-qa`, `responsive-qa` |
+| `analyst` | prototype-analyst | the spec file | `team-lead`, `developer`, `visual-qa`, `behavior-qa`, `responsive-qa` |
 | `developer` | ui-developer | the target files under the build location | `team-lead`, `analyst`, `visual-qa`, `behavior-qa`, `responsive-qa` |
 | `visual-qa` | visual-qa-engineer | nothing | `team-lead`, `analyst` |
 | `behavior-qa` | behavior-qa-engineer | nothing | `team-lead`, `analyst` |
