@@ -28,7 +28,7 @@ You are the team lead. You spawn the team, put the work on the shared task list,
 
 ## 2. Resolve defaults and prerequisites
 
-- **Team.** This process uses only the agents defined in `.claude/agents/ui-implementation-teams/`: prototype-analyst, ui-developer, visual-qa-engineer, behavior-qa-engineer, responsive-qa-engineer, ui-code-reviewer. Confirm all six files exist there with Glob. If any is missing, tell the user which one and stop. Do not substitute any other agent, including agents defined elsewhere under `.claude/agents/`.
+- **Team.** This process uses only the agents defined in `.claude/agents/ui-team/`: analyst, developer, visual-qa, behavior-qa, responsive-qa, code-reviewer. Confirm all six files exist there with Glob. If any is missing, tell the user which one and stop. Do not substitute any other agent, including agents defined elsewhere under `.claude/agents/`.
 - **Project mode.** `/build-ui` runs in project mode `new`: a standalone UI built to the development standard in full. `/update-ui` runs this same playbook in project mode `existing` and states its own differences. Write the mode in every spawn brief.
 - **Run folder.** The spec, the fidelity report, and the file-mode task list are run-time files and live in `.ui-run/<name>/` at the project root, never in `.claude/`. `<name>` is the run name: the last folder of the build location in kebab-case (`build/clr-0/` gives `clr-0`), or, when the target is a file, its base name without the extension. One folder per build keeps each build's spec and report; running the same build again overwrites only its own folder. `--spec` moves the spec only; the report and the task list stay in `.ui-run/<name>/`. Tell the user the run folder in one line. Run `git check-ignore -q .ui-run/` in a git project; if it is not ignored, tell the user in one line to add `.ui-run/` to `.gitignore`, and continue.
 - **Breakpoint list.** Build it from `--breakpoints` or the default: `desktop <w>`, `tablet <w>`, `mobile <w>`. Attach the source to each: the design source for desktop, `--tablet` and `--mobile` for the others, `derived` for a breakpoint with no source. Tell the user in one line which breakpoints have a frame and which will be derived from section 8 of the development standard. Every breakpoint is built and checked either way.
@@ -44,12 +44,12 @@ You are the team lead. You spawn the team, put the work on the shared task list,
 
 | Teammate name | Agent type | Owns (the only files it edits) | Talks to |
 |---|---|---|---|
-| `analyst` | prototype-analyst | the spec file | `team-lead`, `developer`, `visual-qa`, `behavior-qa`, `responsive-qa` |
-| `developer` | ui-developer | the target files under the build location | `team-lead`, `analyst`, `visual-qa`, `behavior-qa`, `responsive-qa` |
-| `visual-qa` | visual-qa-engineer | nothing | `team-lead`, `analyst` |
-| `behavior-qa` | behavior-qa-engineer | nothing | `team-lead`, `analyst` |
-| `responsive-qa` | responsive-qa-engineer | nothing | `team-lead`, `analyst` |
-| `reviewer` | ui-code-reviewer | nothing | `team-lead` |
+| `analyst` | analyst | the spec file | `team-lead`, `developer`, `visual-qa`, `behavior-qa`, `responsive-qa` |
+| `developer` | developer | the target files under the build location | `team-lead`, `analyst`, `visual-qa`, `behavior-qa`, `responsive-qa` |
+| `visual-qa` | visual-qa | nothing | `team-lead`, `analyst` |
+| `behavior-qa` | behavior-qa | nothing | `team-lead`, `analyst` |
+| `responsive-qa` | responsive-qa | nothing | `team-lead`, `analyst` |
+| `reviewer` | code-reviewer | nothing | `team-lead` |
 
 You are addressed as `team-lead`. Two teammates never edit the same file. The developer is the only teammate that edits implementation code. The three QA teammates split the work: visual QA owns the desktop frame's pixels and states, behavior QA owns interactions at every breakpoint, responsive QA owns layout at the tablet and mobile breakpoints and at every width in between. QA teammates report findings to you only; you are the only one who sends findings to the developer, so the three QA streams never produce conflicting instructions.
 
@@ -78,7 +78,7 @@ Spawn with the Agent tool: `subagent_type` set to the agent type, `name` set to 
 Every spawn prompt starts with the team brief below, filled in, followed by the teammate's own inputs from its agent definition.
 
 ```
-You are a teammate on the UI implementation team. Your name is <name>. The team lead is `team-lead`.
+You are a teammate on the UI team. Your name is <name>. The team lead is `team-lead`.
 Task list mode: <shared | file>. In shared mode claim your task with the task tools, set it in progress, and mark it completed when you send your result. In file mode the lead assigns work by message and tracks status.
 Report every result to team-lead with SendMessage, as data in the format your definition gives, with a first line that names the task and says done, blocked, or escalated. Your plain text output reaches nobody.
 Teammates you may message directly, by name: <list from the table>. Send results and questions only, never your reasoning. Do not message anyone else.

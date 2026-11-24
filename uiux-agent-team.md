@@ -2,7 +2,7 @@
 
 The agent team automates the Figma-to-code process: a design goes in, implemented UI comes out, and two gates stand between them. It runs on Claude Code's Agent Teams feature: the main session is the team lead, the six agent definitions are the teammates, work sits on a shared task list, and teammates talk to each other directly.
 
-The team lives in `.claude/agents/ui-implementation-teams/`. The process lives in `.claude/skills/build-ui/SKILL.md`, which is both the command and the team lead's playbook.
+The team lives in `.claude/agents/ui-team/`. The process lives in `.claude/skills/build-ui/SKILL.md`, which is both the command and the team lead's playbook.
 
 Two commands run the same team:
 
@@ -80,12 +80,12 @@ Three deliberate rules:
 
 | Teammate | Agent type | Role | Edits | Messages |
 |---|---|---|---|---|
-| `analyst` | `prototype-analyst` | Reads the Figma MCP data, the PNG reference, the related frames, each breakpoint frame, and the prototype wiring; writes the spec; then on call for questions | The spec file | lead, developer, visual-qa, behavior-qa, responsive-qa |
-| `developer` | `ui-developer` | Implements the spec as HTML + SCSS + JS at every breakpoint; the only one who edits implementation code; in fix mode resolves only the merged list the lead sends | Target files | lead, analyst, visual-qa, behavior-qa, responsive-qa |
-| `visual-qa` | `visual-qa-engineer` | Compares the rendered build at desktop with the desktop frame, the PNG, and the spec: layout, spacing, dimensions, colors, fonts, alignment | Nothing | lead, analyst |
-| `behavior-qa` | `behavior-qa-engineer` | Exercises every interaction, state, navigation, and keyboard path in the spec, at every breakpoint | Nothing | lead, analyst |
-| `responsive-qa` | `responsive-qa-engineer` | Compares the build at tablet and mobile with their frames, sweeps the widths in between, checks derived breakpoints against section 8 | Nothing | lead, analyst |
-| `reviewer` | `ui-code-reviewer` | Reviews the QA-passed build for quality, accessibility, conventions, bugs, and regressions | Nothing | lead |
+| `analyst` | `analyst` | Reads the Figma MCP data, the PNG reference, the related frames, each breakpoint frame, and the prototype wiring; writes the spec; then on call for questions | The spec file | lead, developer, visual-qa, behavior-qa, responsive-qa |
+| `developer` | `developer` | Implements the spec as HTML + SCSS + JS at every breakpoint; the only one who edits implementation code; in fix mode resolves only the merged list the lead sends | Target files | lead, analyst, visual-qa, behavior-qa, responsive-qa |
+| `visual-qa` | `visual-qa` | Compares the rendered build at desktop with the desktop frame, the PNG, and the spec: layout, spacing, dimensions, colors, fonts, alignment | Nothing | lead, analyst |
+| `behavior-qa` | `behavior-qa` | Exercises every interaction, state, navigation, and keyboard path in the spec, at every breakpoint | Nothing | lead, analyst |
+| `responsive-qa` | `responsive-qa` | Compares the build at tablet and mobile with their frames, sweeps the widths in between, checks derived breakpoints against section 8 | Nothing | lead, analyst |
+| `reviewer` | `code-reviewer` | Reviews the QA-passed build for quality, accessibility, conventions, bugs, and regressions | Nothing | lead |
 
 The team lead is the main session. It owns the task list, the pass and round counters, the merged fix list, and both gate decisions. It never does a teammate's work.
 
@@ -170,7 +170,7 @@ The team never commits or opens a pull request. The run ends in one of four stat
 
 ### Using agents on their own
 
-Each agent also works outside the team. Mention it by name in a Claude Code session, for example asking the `ui-code-reviewer` to review the current diff, or the `visual-qa-engineer` to check a component against a spec. Used this way it runs as an ordinary subagent and the main session holds the loop.
+Each agent also works outside the team. Mention it by name in a Claude Code session, for example asking the `code-reviewer` to review the current diff, or the `visual-qa` to check a component against a spec. Used this way it runs as an ordinary subagent and the main session holds the loop.
 
 ---
 
@@ -179,7 +179,7 @@ Each agent also works outside the team. Mention it by name in a Claude Code sess
 - **Agent Teams enabled.** `.claude/settings.local.json` must contain `"env": {"CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1"}`. The feature is experimental and needs an interactive session; under `claude -p` named spawns run as plain subagents and no team forms.
 - **Shared task list tools.** On current models the `TaskCreate`, `TaskList`, `TaskUpdate`, and `TaskGet` tools are off by default. Add `"CLAUDE_CODE_ENABLE_TODO_TOOLS": "1"` to the same `env` block. The VS Code extension also launches Claude Code with `CLAUDE_CODE_ENABLE_TASKS=0`, which swaps the shared list for a private TodoWrite; add `"CLAUDE_CODE_ENABLE_TASKS": "1"` to the env block to override it. Without both, the lead keeps the task list in `.ui-run/<name>/team-tasks.md` and teammates coordinate by message only, which works but loses self-claiming.
 - **Session restart after edits.** Agent definitions and skills load when a session starts. After editing anything in `.claude/agents` or `.claude/skills`, start a new session before running `/build-ui` or `/update-ui`.
-- **Figma access.** Agents that must reach the Figma connector (`prototype-analyst`, `visual-qa-engineer`, `behavior-qa-engineer`, `responsive-qa-engineer`) have no `tools:` whitelist. A whitelist hides the connector's tools from the agent, and in the current build it also drops Glob, Grep, and ToolSearch. Their read-only behaviour is enforced by instruction, not by tool restriction.
+- **Figma access.** Agents that must reach the Figma connector (`analyst`, `visual-qa`, `behavior-qa`, `responsive-qa`) have no `tools:` whitelist. A whitelist hides the connector's tools from the agent, and in the current build it also drops Glob, Grep, and ToolSearch. Their read-only behaviour is enforced by instruction, not by tool restriction.
 - The Figma MCP connector, authorized in Claude Code. Without it the analyst reports a blocker, or extracts from a supplied image with reduced confidence.
 - For rendered QA: a running dev server and Playwright or Puppeteer available in the project. Without them the QA engineers use the static method.
 - The two standard files in `.claude/standards/`, or in the folder given with `--standards`.
@@ -190,6 +190,6 @@ Each agent also works outside the team. Mention it by name in a Claude Code sess
 
 Until 2026-10-15 this process ran as a scripted Workflow (`figma-to-ui.js`), with the gates decided in code. It was replaced by the Agent Teams model so the lead can coordinate live, teammates can message each other, and the task list is visible while the run is in progress. The retired script was removed from the repo on 2026-11-12. It remains in git history at `.claude/workflows/retired/figma-to-ui.js` (commit `a1b1488`).
 
-Until 2026-10-26 the team was the six-agent "design to UI implementation" team (extractor, builder, fidelity validator, three code reviewers with a verifier, packager) in `.claude/agents/design-to-ui-implementation/`. It was replaced by the UI implementation team, which splits fidelity QA into visual, behaviour, and responsive engineers, uses one code reviewer, takes the mobile and tablet frames as explicit inputs, and keeps the delivered UI in `build/<frame>/` instead of a Desktop delivery folder.
+Until 2026-10-26 the team was the six-agent "design to UI implementation" team (extractor, builder, fidelity validator, three code reviewers with a verifier, packager) in `.claude/agents/design-to-ui-implementation/`. It was replaced by the UI team, which splits fidelity QA into visual, behaviour, and responsive engineers, uses one code reviewer, takes the mobile and tablet frames as explicit inputs, and keeps the delivered UI in `build/<frame>/` instead of a Desktop delivery folder.
 
 On 2026-11-12 the `/update-ui` command was added. It runs the same six agents in project mode `existing`, so a page or section in a project with its own conventions can be updated without creating the `styles/` structure the development standard describes for new projects.

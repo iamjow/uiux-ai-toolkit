@@ -1,4 +1,4 @@
-# UI implementation team
+# UI team
 
 The six agents in this folder are one agent team that automates the Figma-to-code
 workflow: Figma MCP data and a PNG reference go in, together with the mobile and tablet
@@ -16,12 +16,12 @@ never fix them.
 
 | Agent | Teammate name | Role | Edits | Runs when |
 |---|---|---|---|---|
-| prototype-analyst | `analyst` | Reads the Figma MCP data, the PNG reference, and each breakpoint frame, and writes the design spec: layout, dimensions, spacing, padding, colors, typography, assets, breakpoints and their overrides, interaction states. Then answers questions about the spec | the spec file | First; on call afterwards |
-| ui-developer | `developer` | Implements the spec as HTML + SCSS + JS at every breakpoint, desktop as the base with every responsive style in `styles/responsive/`, following the development standard and project conventions; in fix mode resolves only the merged findings list the lead sends | the target files under the build location | After analysis, and after every failed QA gate |
-| visual-qa-engineer | `visual-qa` | Compares the rendered build at the desktop breakpoint with the desktop frame, the PNG, and the spec; reports layout, spacing, dimension, color, font, and alignment deltas with the fix needed | nothing | After every build or fix pass, in parallel with the other QA engineers |
-| behavior-qa-engineer | `behavior-qa` | Exercises every interaction, state, navigation, and keyboard path in the spec, at every breakpoint; reports functional issues and missing behaviours | nothing | After every build or fix pass, in parallel with the other QA engineers |
-| responsive-qa-engineer | `responsive-qa` | Compares the build at the tablet and mobile breakpoints with their frames, sweeps the widths in between, and checks derived breakpoints against section 8 of the development standard; reports order, wrapping, visibility, overflow, and touch-target deltas per breakpoint | nothing | After every build or fix pass, in parallel with the other QA engineers |
-| ui-code-reviewer | `reviewer` | Reviews the QA-passed implementation for quality, maintainability, accessibility, conventions, bugs, and regressions against the code review standard | nothing | After all three QA engineers pass |
+| analyst | `analyst` | Reads the Figma MCP data, the PNG reference, and each breakpoint frame, and writes the design spec: layout, dimensions, spacing, padding, colors, typography, assets, breakpoints and their overrides, interaction states. Then answers questions about the spec | the spec file | First; on call afterwards |
+| developer | `developer` | Implements the spec as HTML + SCSS + JS at every breakpoint, desktop as the base with every responsive style in `styles/responsive/`, following the development standard and project conventions; in fix mode resolves only the merged findings list the lead sends | the target files under the build location | After analysis, and after every failed QA gate |
+| visual-qa | `visual-qa` | Compares the rendered build at the desktop breakpoint with the desktop frame, the PNG, and the spec; reports layout, spacing, dimension, color, font, and alignment deltas with the fix needed | nothing | After every build or fix pass, in parallel with the other QA engineers |
+| behavior-qa | `behavior-qa` | Exercises every interaction, state, navigation, and keyboard path in the spec, at every breakpoint; reports functional issues and missing behaviours | nothing | After every build or fix pass, in parallel with the other QA engineers |
+| responsive-qa | `responsive-qa` | Compares the build at the tablet and mobile breakpoints with their frames, sweeps the widths in between, and checks derived breakpoints against section 8 of the development standard; reports order, wrapping, visibility, overflow, and touch-target deltas per breakpoint | nothing | After every build or fix pass, in parallel with the other QA engineers |
+| code-reviewer | `reviewer` | Reviews the QA-passed implementation for quality, maintainability, accessibility, conventions, bugs, and regressions against the code review standard | nothing | After all three QA engineers pass |
 
 ## Breakpoint frames
 
@@ -83,7 +83,7 @@ Put every input a task needs in its description (spec path, standards paths, tar
 Spawn with the Agent tool: `subagent_type` set to the agent name, `name` set to the teammate name, `run_in_background` true. Spawn `analyst`, `developer`, `visual-qa`, `behavior-qa`, and `responsive-qa` at the start, and `reviewer` when the QA gate passes. Every spawn prompt starts with this brief, filled in, followed by the inputs the agent's own definition lists.
 
 ```
-You are a teammate on the UI implementation team. Your name is <name>. The team lead is `team-lead`.
+You are a teammate on the UI team. Your name is <name>. The team lead is `team-lead`.
 Task list mode: <shared | file>. In shared mode claim your task with the task tools, set it in progress, and mark it completed when you send your result. In file mode the lead assigns work by message and tracks status.
 Report every result to team-lead with SendMessage, as data in the format your definition gives, with a first line that names the task and says done, blocked, or escalated. Your plain text output reaches nobody.
 Teammates you may message directly, by name: <list from the table>. Send results and questions only, never your reasoning. Do not message anyone else.

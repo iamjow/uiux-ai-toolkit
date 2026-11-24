@@ -20,16 +20,16 @@ const OUT_FILE = join(ROOT, 'docs/catalog.html');
 // The workflow diagram. Seven columns; the CSS for the two loop brackets assumes the
 // developer is column 2, the QA gate column 4, and the review gate column 6.
 const PIPELINE = [
-  { kind: 'analysis', tag: 'Analysis', label: 'Mockup analysis', agents: ['prototype-analyst'] },
-  { kind: 'build', tag: 'Build', label: 'UI development', agents: ['ui-developer'] },
+  { kind: 'analysis', tag: 'Analysis', label: 'Mockup analysis', agents: ['analyst'] },
+  { kind: 'build', tag: 'Build', label: 'UI development', agents: ['developer'] },
   {
     kind: 'qa',
     tag: 'QA',
     label: 'QA, in parallel',
-    agents: ['visual-qa-engineer', 'behavior-qa-engineer', 'responsive-qa-engineer'],
+    agents: ['visual-qa', 'behavior-qa', 'responsive-qa'],
   },
   { gate: true, label: 'QA gate', note: 'All three pass on the same pass' },
-  { kind: 'review', tag: 'Review', label: 'Final code review', agents: ['ui-code-reviewer'] },
+  { kind: 'review', tag: 'Review', label: 'Final code review', agents: ['code-reviewer'] },
   { gate: true, label: 'Review gate', note: 'No Critical or High finding' },
   { end: true, label: 'Ready for human review', note: 'You review the diff, commit, and open the PR' },
 ];
@@ -361,7 +361,8 @@ function loadTeams(skills) {
       description: data.description || '',
       model: data.model || '',
       tools: data.tools || '',
-      title: (data.description.match(/^(.+?) on the /) || [])[1] || humanize(data.name),
+      // The card title is the agent's name, so the page cannot drift from the definitions.
+      title: data.name,
       body,
       path: rel(file),
     });
@@ -436,7 +437,7 @@ function renderFlow(agentByName) {
       .map((name) => {
         const agent = agentByName.get(name);
         return agent
-          ? `<li><a class="flow__agent" href="#${esc(agent.id)}">${esc(agent.teammate)}</a></li>`
+          ? `<li><a class="flow__agent" href="#${esc(agent.id)}">${esc(agent.name)}</a></li>`
           : `<li><span class="flow__agent">${esc(name)}</span></li>`;
       })
       .join('');
@@ -519,7 +520,7 @@ function renderAgent(agent, agentByTeammate) {
     .map((name) => {
       const other = agentByTeammate.get(name);
       return other
-        ? `<li><a class="chip" href="#${esc(other.id)}">${esc(name)}</a></li>`
+        ? `<li><a class="chip" href="#${esc(other.id)}">${esc(other.name)}</a></li>`
         : `<li><span class="chip">${esc(name)}</span></li>`;
     })
     .join('');
@@ -538,10 +539,11 @@ function renderAgent(agent, agentByTeammate) {
   return `<article class="card card--agent" id="${esc(agent.id)}" data-card>
 <header class="card__header">
 <p class="card__tag card__tag--${esc(kind)}">${esc(agent.stage?.tag || 'Agent')}</p>
-<h3 class="card__title">${esc(agent.title)}</h3>
-<p class="card__names"><code>${esc(agent.name)}</code>${
-    agent.teammate !== agent.name ? ` <span>teammate</span> <code>${esc(agent.teammate)}</code>` : ''
-  }</p>
+<h3 class="card__title card__title--command">${esc(agent.title)}</h3>${
+    agent.teammate !== agent.name
+      ? `\n<p class="card__names"><span>teammate</span> <code>${esc(agent.teammate)}</code></p>`
+      : ''
+  }
 </header>
 <p class="card__text">${inline(agent.role || agent.description)}</p>
 <dl class="meta">
@@ -557,7 +559,7 @@ ${readButton(agent.id, 'Read the definition')}
 function renderStandard(standard) {
   const usedBy = [
     ...standard.usedBySkills.map((s) => `<li><a class="chip" href="#${esc(s.id)}">/${esc(s.name)}</a></li>`),
-    ...standard.usedByAgents.map((a) => `<li><a class="chip" href="#${esc(a.id)}">${esc(a.teammate)}</a></li>`),
+    ...standard.usedByAgents.map((a) => `<li><a class="chip" href="#${esc(a.id)}">${esc(a.name)}</a></li>`),
   ].join('');
   return `<article class="card card--standard" id="${esc(standard.id)}" data-card>
 <header class="card__header">
