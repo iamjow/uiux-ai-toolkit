@@ -1,11 +1,19 @@
 #!/usr/bin/env node
-// Builds docs/catalog.html: one self-contained page that catalogs the skills, agents,
-// and standards under .claude/. Everything on the page is read from the markdown files,
-// except PIPELINE and LOOPS below, which describe the workflow diagram by hand.
+// Builds the catalog of the skills, agents, and standards under .claude/ as two
+// self-contained files. Everything on the page is read from the markdown files, except
+// PIPELINE and LOOPS below, which describe the workflow diagram by hand.
+//
+//   docs/catalog.html         the standalone page, opened straight from the repository
+//   docs/catalog.hosted.html  the same page for claude.ai, with the shared issue log
 //
 //   node scripts/build-catalog.mjs
 //
 // No dependencies. Run it again after editing an agent, a skill, or a standard.
+//
+// The issue log needs shared storage, so it only works in the hosted copy: a claude.ai
+// artifact published from docs/catalog.hosted.html with the db and user capabilities.
+// To update the hosted copy after a rebuild, ask Claude Code to publish
+// docs/catalog.hosted.html to HOSTED_URL. Its capabilities and stored issues carry over.
 
 import { existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
 import { basename, dirname, join, relative } from 'node:path';
@@ -16,6 +24,9 @@ const AGENTS_DIR = join(ROOT, '.claude/agents');
 const SKILLS_DIR = join(ROOT, '.claude/skills');
 const STANDARDS_DIR = join(ROOT, '.claude/standards');
 const OUT_FILE = join(ROOT, 'docs/catalog.html');
+const HOSTED_FILE = join(ROOT, 'docs/catalog.hosted.html');
+// The published artifact. The standalone page links here for the issue log.
+const HOSTED_URL = 'https://claude.ai/artifact/GuzZVHthphUoZGT8W1pvwB';
 
 // The workflow diagram. Seven columns; the CSS for the two loop brackets assumes the
 // developer is column 2, the QA gate column 4, and the review gate column 6.
@@ -423,8 +434,11 @@ function loadStandards(agents, skills) {
 const hrefTo = (path) => encodeURI(relative(dirname(OUT_FILE), join(ROOT, path)).split('\\').join('/'));
 const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
 
-const docTemplate = (id, title, path, html) =>
-  `<template id="doc-${esc(id)}" data-title="${esc(title)}" data-path="${esc(path)}" data-href="${esc(hrefTo(path))}">\n${html}\n</template>`;
+// The hosted copy has no repository beside it, so its documents carry no link to the file.
+const docTemplate = (id, title, path, html, hosted) =>
+  `<template id="doc-${esc(id)}" data-title="${esc(title)}" data-path="${esc(path)}"${
+    hosted ? '' : ` data-href="${esc(hrefTo(path))}"`
+  }>\n${html}\n</template>`;
 
 const readButton = (id, label) =>
   `<button type="button" class="button" data-doc="${esc(id)}">${esc(label)}</button>`;
@@ -459,7 +473,7 @@ ${steps}
 </div>`;
 }
 
-function renderSkill(skill, teams) {
+function renderSkill(skill, teams, hosted) {
   const [lead, rest] = firstSentence(skill.description);
   const { required, optional, flags } = skill.usage;
   const command = [`/${skill.name}`, ...required].join(' ');
@@ -474,6 +488,8 @@ function renderSkill(skill, teams) {
     skill.userOnly && '<li class="badge" title="disable-model-invocation: Claude never starts it by itself">Run by you only</li>',
     skill.base && `<li class="badge">Follows <a href="#${esc(skill.base.id)}">/${esc(skill.base.name)}</a></li>`,
     team && `<li class="badge">Leads <a href="#agents">${plural(team.agents.length, 'agent')}</a></li>`,
+    // Filled in by the issue log with this skill's open issues.
+    hosted && `<li class="badge" data-issue-badge="${esc(skill.name)}" hidden><a href="#issues"></a></li>`,
   ].filter(Boolean);
 
   const options = flags
@@ -582,9 +598,101 @@ ${readButton(standard.id, 'Read the standard')}
 </article>`;
 }
 
+const ISSUES_LEAD =
+  'Problems you hit while building, converting, or updating a UI with these skills. Say what went wrong so the skill, agent, or standard behind it can be fixed.';
+
+// The issue log. The hosted copy gets the form and the live list; the standalone page,
+// which has nowhere to store anything, links to the hosted copy once HOSTED_URL is set.
+function renderIssues(skills, hosted) {
+  if (!hosted) {
+    if (!HOSTED_URL) return '';
+    return `<section class="section" id="issues" data-overview>
+<div class="container">
+<div class="section__header">
+<h2 class="section__title">Issues</h2>
+</div>
+<p class="section__lead">${ISSUES_LEAD} The log lives on the hosted copy of this catalog, where the whole team sees the same list.</p>
+<a class="button" href="${esc(HOSTED_URL)}#issues" rel="noopener">Open the issue log</a>
+</div>
+</section>`;
+  }
+  const options = [
+    ...skills.map((s) => `<option value="${esc(s.name)}">/${esc(s.name)}</option>`),
+    '<option value="other">Other</option>',
+  ].join('');
+  return `<section class="section" id="issues" data-overview>
+<div class="container">
+<div class="section__header">
+<h2 class="section__title">Issues</h2>
+<span class="section__count" id="issue-total" hidden></span>
+</div>
+<p class="section__lead">${ISSUES_LEAD}</p>
+<div class="issues">
+<form class="issue-form" id="issue-form">
+<fieldset class="issue-form__fields" id="issue-fields" disabled>
+<h3 class="issue-form__title">Report an issue</h3>
+<div class="field">
+<label class="field__label" for="issue-skill">Skill you ran</label>
+<select class="field__control" id="issue-skill">${options}</select>
+</div>
+<div class="field">
+<label class="field__label" for="issue-target">Frame or page <span class="field__hint">(optional)</span></label>
+<input class="field__control" id="issue-target" type="text" maxlength="120" placeholder="clr-0 or Pricing.vue" autocomplete="off">
+</div>
+<div class="field">
+<label class="field__label" for="issue-text">What went wrong</label>
+<textarea class="field__control" id="issue-text" rows="6" maxlength="4000" placeholder="What you ran, what you expected, and what happened instead."></textarea>
+</div>
+<div class="issue-form__actions">
+<button type="submit" class="button button--primary">Post issue</button>
+<p class="issue-form__status" id="issue-form-status" role="status"></p>
+</div>
+</fieldset>
+</form>
+<p class="issue-access" id="issue-access" hidden></p>
+<div class="issue-panel">
+<div class="issue-toolbar">
+<div class="issue-tabs" role="group" aria-label="Show issues">
+<button type="button" class="issue-tab" data-issue-status="open" aria-pressed="true">Open</button>
+<button type="button" class="issue-tab" data-issue-status="resolved" aria-pressed="false">Resolved</button>
+<button type="button" class="issue-tab" data-issue-status="all" aria-pressed="false">All</button>
+</div>
+<label class="visually-hidden" for="issue-filter-skill">Show issues for</label>
+<select class="field__control" id="issue-filter-skill"><option value="">All skills</option>${options}</select>
+</div>
+<p class="issue-note" id="issue-note" role="status">Loading issues…</p>
+<ol class="issue-list" id="issue-list"></ol>
+</div>
+</div>
+</div>
+</section>`;
+}
+
+const DARK_TOKENS = `
+  color-scheme: dark;
+  --bg: #0f1115;
+  --surface: #171a21;
+  --surface-sunken: #1f232c;
+  --text: #e8eaef;
+  --muted: #9ba4b3;
+  --line: #2a2f3a;
+  --line-strong: #4a5263;
+  --accent: #93a5fb;
+  --accent-soft: #1f2644;
+  --analysis: #c4b5fd;
+  --analysis-soft: #2a2145;
+  --build: #93c5fd;
+  --build-soft: #172a4a;
+  --qa: #fcd34d;
+  --qa-soft: #3a2c0c;
+  --review: #86efac;
+  --review-soft: #12301d;
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+`;
+
 const CSS = String.raw`
 :root {
-  color-scheme: light dark;
+  color-scheme: light;
   --bg: #f5f6f8;
   --surface: #ffffff;
   --surface-sunken: #eef0f4;
@@ -609,28 +717,11 @@ const CSS = String.raw`
   --font: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
 }
+/* Dark follows the system setting unless the viewer picked a theme: claude.ai sets data-theme on the root for that. */
 @media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #0f1115;
-    --surface: #171a21;
-    --surface-sunken: #1f232c;
-    --text: #e8eaef;
-    --muted: #9ba4b3;
-    --line: #2a2f3a;
-    --line-strong: #4a5263;
-    --accent: #93a5fb;
-    --accent-soft: #1f2644;
-    --analysis: #c4b5fd;
-    --analysis-soft: #2a2145;
-    --build: #93c5fd;
-    --build-soft: #172a4a;
-    --qa: #fcd34d;
-    --qa-soft: #3a2c0c;
-    --review: #86efac;
-    --review-soft: #12301d;
-    --shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
-  }
+  :root:not([data-theme="light"]) {${DARK_TOKENS}}
 }
+:root[data-theme="dark"] {${DARK_TOKENS}}
 *, *::before, *::after { box-sizing: border-box; }
 [hidden] { display: none !important; }
 html { scroll-behavior: smooth; scroll-padding-top: calc(var(--header-height) + 16px); }
@@ -644,9 +735,11 @@ code, pre { font-family: var(--mono); font-size: 0.9em; }
 .visually-hidden { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 .skip-link { position: absolute; left: 16px; top: -48px; z-index: 30; padding: 8px 12px; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; }
 .skip-link:focus { top: 8px; }
-.container { width: min(100% - 32px, 1200px); margin-inline: auto; }
+/* The gutter is padding, not width, so it can also clear a phone's side system bar. */
+.container { width: 100%; max-width: 1232px; margin-inline: auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
 
-.site-header { position: sticky; top: 0; z-index: 20; background: color-mix(in srgb, var(--bg) 88%, transparent); backdrop-filter: blur(10px); border-bottom: 1px solid var(--line); }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--bg); }
+.site-header { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 20; background: color-mix(in srgb, var(--bg) 88%, transparent); backdrop-filter: blur(10px); border-bottom: 1px solid var(--line); }
 .site-header__inner { display: flex; align-items: center; gap: 12px 24px; min-height: var(--header-height); }
 .site-header__brand { font-weight: 650; color: var(--text); text-decoration: none; white-space: nowrap; }
 .site-nav { margin-right: auto; }
@@ -707,9 +800,47 @@ a.chip:hover { background: var(--accent-soft); color: var(--accent); }
 .usage { display: flex; align-items: flex-start; gap: 8px; padding: 10px 10px 10px 12px; background: var(--surface-sunken); border-radius: 8px; }
 .usage__line { flex: 1; min-width: 0; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 13px; line-height: 1.6; }
 
-.button { padding: 7px 12px; border: 1px solid var(--line-strong); border-radius: 8px; background: var(--surface); color: var(--text); font: 500 14px/1.3 var(--font); cursor: pointer; }
+.button { display: inline-block; padding: 7px 12px; border: 1px solid var(--line-strong); border-radius: 8px; background: var(--surface); color: var(--text); font: 500 14px/1.3 var(--font); text-decoration: none; cursor: pointer; }
 .button:hover { border-color: var(--accent); color: var(--accent); }
 .button--small { padding: 3px 9px; font-size: 13px; }
+.button--primary, .button--primary:hover { border-color: var(--accent); background: var(--accent); color: var(--surface); }
+.button--primary:hover { filter: brightness(1.1); }
+.button:disabled { opacity: 0.55; cursor: default; }
+
+.issues { display: grid; grid-template-columns: minmax(0, 340px) minmax(0, 1fr); gap: 16px; align-items: start; }
+.issue-form, .issue-access, .issue-panel { min-width: 0; padding: 20px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); }
+.issue-access { color: var(--muted); }
+.issue-form__fields { display: grid; gap: 14px; min-width: 0; margin: 0; padding: 0; border: 0; }
+.issue-form__title { font-size: 16px; }
+.issue-form__actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+.issue-form__status { color: var(--muted); font-size: 13px; }
+.field { display: grid; gap: 5px; }
+.field__label { font-size: 13px; font-weight: 600; }
+.field__hint { color: var(--muted); font-weight: 400; }
+.field__control { width: 100%; min-height: 36px; padding: 7px 10px; border: 1px solid var(--line-strong); border-radius: 8px; background: var(--surface); color: var(--text); font: inherit; }
+.field__control::placeholder { color: var(--muted); }
+textarea.field__control { min-height: 132px; line-height: 1.5; resize: vertical; }
+.issue-toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 12px; }
+.issue-toolbar .field__control { width: auto; min-height: 32px; padding-block: 0; font-size: 13px; }
+.issue-tabs { display: flex; gap: 4px; padding: 3px; border-radius: 9px; background: var(--surface-sunken); }
+.issue-tab { padding: 4px 10px; border: 0; border-radius: 6px; background: none; color: var(--muted); font: 500 13px/1.4 var(--font); cursor: pointer; }
+.issue-tab:hover { color: var(--text); }
+.issue-tab[aria-pressed="true"] { background: var(--surface); color: var(--text); box-shadow: var(--shadow); }
+.issue-note { margin-top: 16px; color: var(--muted); font-size: 14px; }
+.issue-list { margin-top: 4px; }
+.issue { display: grid; grid-template-columns: 28px minmax(0, 1fr); gap: 12px; padding: 16px 0; border-top: 1px solid var(--line); }
+.issue:first-child { border-top: 0; }
+.issue:last-child { padding-bottom: 0; }
+.issue__avatar { width: 28px; height: 28px; border-radius: 50%; background: var(--surface-sunken); }
+.issue__head { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; }
+.issue__author { font-weight: 600; }
+.issue__time { color: var(--muted); font-size: 13px; }
+.issue__state { padding: 1px 8px; border-radius: 999px; background: var(--qa-soft); color: var(--qa); font-size: 12px; font-weight: 600; }
+.issue__state--resolved { background: var(--review-soft); color: var(--review); }
+.issue__text { margin-top: 6px; white-space: pre-wrap; overflow-wrap: anywhere; }
+.issue--resolved .issue__text { color: var(--muted); }
+.issue__actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.chip--skill { background: var(--accent-soft); color: var(--accent); }
 
 .options summary { color: var(--accent); font-weight: 500; cursor: pointer; }
 .options__list { display: grid; gap: 12px; margin-top: 12px; font-size: 14px; }
@@ -770,7 +901,7 @@ a.flow__agent:hover { border-color: var(--accent); color: var(--accent); }
 .table-wrap td { min-width: 120px; }
 .table-wrap tr:last-child td { border-bottom: 0; }
 
-.empty { padding: 56px 0; color: var(--muted); text-align: center; }
+.empty { padding-block: 56px; color: var(--muted); text-align: center; }
 .site-footer { margin-top: 56px; padding: 24px 0 40px; border-top: 1px solid var(--line); color: var(--muted); font-size: 14px; }
 .site-footer code { padding: 1px 5px; border-radius: 5px; background: var(--surface-sunken); }
 
@@ -793,6 +924,9 @@ a.flow__agent:hover { border-color: var(--accent); color: var(--accent); }
   .flow__bracket { display: none; }
   .flow__loop--qa, .flow__loop--review { margin: 12px 0 0; padding: 10px 12px; border: 1.5px dashed var(--line-strong); border-radius: 10px; text-align: left; }
   .flow__loop--qa::before { display: none; }
+}
+@media (max-width: 899px) {
+  .issues { grid-template-columns: minmax(0, 1fr); }
 }
 @media (max-width: 767px) {
   .site-header__inner { flex-wrap: wrap; padding-block: 10px; }
@@ -889,7 +1023,8 @@ const JS = String.raw`
     if (!doc) return;
     readerTitle.textContent = doc.getAttribute('data-title');
     readerPath.textContent = doc.getAttribute('data-path');
-    readerPath.href = doc.getAttribute('data-href');
+    var href = doc.getAttribute('data-href');
+    if (href) readerPath.href = href; else readerPath.removeAttribute('href');
     readerBody.replaceChildren(doc.content.cloneNode(true));
     reader.showModal();
     readerBody.scrollTop = 0;
@@ -938,7 +1073,345 @@ const JS = String.raw`
 })();
 `;
 
-function renderPage(skills, teams, standards) {
+// The issue log, hosted copy only. Storage is the artifact's db capability: one document
+// per author at issues/<author id>, holding every issue that person posted under "items".
+// The access rules let everyone read, each person write their own document, and the
+// artifact's owner write any of them. Everything read back is other people's input, so
+// it only ever reaches the page through textContent.
+const ISSUES_JS = String.raw`
+(function () {
+  var section = document.getElementById('issues');
+  var form = document.getElementById('issue-form');
+  if (!section || !form) return;
+  var fields = document.getElementById('issue-fields');
+  var skillInput = document.getElementById('issue-skill');
+  var targetInput = document.getElementById('issue-target');
+  var textInput = document.getElementById('issue-text');
+  var formStatus = document.getElementById('issue-form-status');
+  var access = document.getElementById('issue-access');
+  var note = document.getElementById('issue-note');
+  var list = document.getElementById('issue-list');
+  var total = document.getElementById('issue-total');
+  var skillFilter = document.getElementById('issue-filter-skill');
+  var tabs = Array.prototype.slice.call(section.querySelectorAll('[data-issue-status]'));
+  var badges = Array.prototype.slice.call(document.querySelectorAll('[data-issue-badge]'));
+
+  var db = null;
+  var user = null;
+  var me = null;
+  var canPost = false;
+  var issues = [];
+  var loaded = false;
+  var problem = '';
+  var busy = false;
+  var confirming = '';
+  var filter = { status: 'open', skill: '' };
+  var drawn = 0;
+
+  function el(tag, className, text) {
+    var node = document.createElement(tag);
+    if (className) node.className = className;
+    if (text) node.textContent = text;
+    return node;
+  }
+
+  function collect(snap) {
+    var out = [];
+    snap.docs.forEach(function (doc) {
+      var items = (doc.data() || {}).items;
+      if (!items || typeof items !== 'object') return;
+      Object.keys(items).forEach(function (id) {
+        var item = items[id];
+        if (!item || typeof item !== 'object' || item.deleted || typeof item.text !== 'string' || !item.text) return;
+        out.push({
+          author: doc.id,
+          id: id,
+          skill: typeof item.skill === 'string' ? item.skill.slice(0, 40) : 'other',
+          target: typeof item.target === 'string' ? item.target.slice(0, 120) : '',
+          text: item.text.slice(0, 4000),
+          createdAt: typeof item.createdAt === 'string' ? item.createdAt : '',
+          resolved: item.status === 'resolved'
+        });
+      });
+    });
+    // Newest first.
+    out.sort(function (a, b) { return a.createdAt < b.createdAt ? 1 : a.createdAt > b.createdAt ? -1 : 0; });
+    return out;
+  }
+
+  function formatDate(iso) {
+    var date = new Date(iso);
+    if (!iso || isNaN(date.getTime())) return '';
+    return date.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+  }
+
+  function actionButton(issue, action, label) {
+    var button = el('button', 'button button--small', label);
+    button.type = 'button';
+    button.setAttribute('data-issue-action', action);
+    button.setAttribute('data-author', issue.author);
+    button.setAttribute('data-id', issue.id);
+    return button;
+  }
+
+  function row(issue, person) {
+    var item = el('li', 'issue' + (issue.resolved ? ' issue--resolved' : ''));
+    var avatar = el(person && person.avatarUrl ? 'img' : 'span', 'issue__avatar');
+    if (person && person.avatarUrl) {
+      avatar.alt = '';
+      avatar.width = 28;
+      avatar.height = 28;
+      avatar.src = person.avatarUrl;
+    }
+    item.appendChild(avatar);
+
+    var main = el('div', 'issue__main');
+    var head = el('div', 'issue__head');
+    head.appendChild(el('span', 'issue__author', (person && person.name) || 'Someone'));
+    head.appendChild(el('span', 'chip chip--skill', issue.skill === 'other' ? 'Other' : '/' + issue.skill));
+    if (issue.target) head.appendChild(el('span', 'chip', issue.target));
+    head.appendChild(el('span', 'issue__state' + (issue.resolved ? ' issue__state--resolved' : ''), issue.resolved ? 'Resolved' : 'Open'));
+    var when = formatDate(issue.createdAt);
+    if (when) {
+      var time = el('time', 'issue__time', when);
+      time.dateTime = issue.createdAt;
+      head.appendChild(time);
+    }
+    main.appendChild(head);
+    main.appendChild(el('p', 'issue__text', issue.text));
+
+    // The author and the catalog's owner can resolve, reopen, or delete an issue.
+    if (canPost && me && (me.id === issue.author || me.isOwner)) {
+      var actions = el('div', 'issue__actions');
+      if (confirming === issue.author + '/' + issue.id) {
+        actions.appendChild(actionButton(issue, 'delete', 'Confirm delete'));
+        actions.appendChild(actionButton(issue, 'cancel', 'Cancel'));
+      } else {
+        actions.appendChild(actionButton(issue, issue.resolved ? 'reopen' : 'resolve', issue.resolved ? 'Reopen' : 'Mark resolved'));
+        actions.appendChild(actionButton(issue, 'delete', 'Delete'));
+      }
+      main.appendChild(actions);
+    }
+    item.appendChild(main);
+    return item;
+  }
+
+  function render() {
+    var open = issues.filter(function (issue) { return !issue.resolved; });
+    total.textContent = open.length + ' open';
+    total.hidden = !loaded;
+    badges.forEach(function (badge) {
+      var skill = badge.getAttribute('data-issue-badge');
+      var count = open.filter(function (issue) { return issue.skill === skill; }).length;
+      badge.querySelector('a').textContent = count + (count === 1 ? ' open issue' : ' open issues');
+      badge.hidden = count === 0;
+    });
+    tabs.forEach(function (tab) {
+      tab.setAttribute('aria-pressed', String(tab.getAttribute('data-issue-status') === filter.status));
+    });
+
+    var shown = issues.filter(function (issue) {
+      if (filter.skill && issue.skill !== filter.skill) return false;
+      return filter.status === 'all' || (filter.status === 'resolved') === issue.resolved;
+    });
+    var authors = shown
+      .map(function (issue) { return issue.author; })
+      .filter(function (id, i, all) { return all.indexOf(id) === i; });
+    // Names are looked up on every draw and never stored: they differ per viewer and go stale.
+    var turn = ++drawn;
+    var lookup = user && authors.length ? user.profiles(authors) : Promise.resolve({});
+    lookup.then(function (people) {
+      if (turn !== drawn) return;
+      list.replaceChildren.apply(list, shown.map(function (issue) { return row(issue, people[issue.author]); }));
+      var message = problem;
+      if (!message && !loaded) message = 'Loading issues…';
+      if (!message && !shown.length) {
+        message = issues.length
+          ? 'No issues match these filters.'
+          : 'No issues logged yet.' + (canPost ? ' Report the first one with the form.' : '');
+      }
+      note.textContent = message;
+      note.hidden = !message;
+    });
+  }
+
+  function saveError(error) {
+    var code = error && error.code;
+    if (code === 'invalid_argument') return 'That could not be saved. You may only have view access: ask the catalog owner for Contributor access.';
+    if (code === 'quota_exceeded') return 'The issue log is full. Ask the catalog owner to delete old issues.';
+    if (code === 'resource_exhausted') return 'Too many changes at once. Wait a moment and try again.';
+    return 'That could not be saved. Try again in a moment.';
+  }
+
+  // Merges one issue into its author's document, creating the document on their first post.
+  // A merge only touches that issue, so two people changing different issues never collide.
+  function write(author, id, patch) {
+    var ref = db.collection('issues').doc(author);
+    var body = { items: {} };
+    body.items[id] = patch;
+    var attempt = function () {
+      return ref.get().then(function (snap) { return snap.exists ? ref.update(body) : ref.set(body); });
+    };
+    busy = true;
+    return attempt()
+      .catch(function (error) {
+        if (!error || error.code !== 'unavailable') throw error;
+        return new Promise(function (resolve) { setTimeout(resolve, 400 + Math.random() * 800); }).then(attempt);
+      })
+      .then(
+        function () { busy = false; },
+        function (error) { busy = false; throw error; }
+      );
+  }
+
+  form.addEventListener('submit', function (event) {
+    event.preventDefault();
+    if (busy || !canPost) return;
+    var text = textInput.value.trim();
+    if (!text) {
+      formStatus.textContent = 'Describe what went wrong before posting.';
+      textInput.focus();
+      return;
+    }
+    var skill = skillInput.value;
+    var id = Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+    fields.disabled = true;
+    formStatus.textContent = 'Posting…';
+    write(me.id, id, {
+      skill: skill,
+      target: targetInput.value.trim(),
+      text: text,
+      createdAt: new Date().toISOString(),
+      status: 'open'
+    }).then(
+      function () {
+        textInput.value = '';
+        targetInput.value = '';
+        formStatus.textContent = 'Posted.';
+        fields.disabled = false;
+        // Make sure the new issue is in view.
+        filter.status = 'open';
+        if (filter.skill && filter.skill !== skill) {
+          filter.skill = '';
+          skillFilter.value = '';
+        }
+        render();
+      },
+      function (error) {
+        formStatus.textContent = saveError(error);
+        fields.disabled = false;
+      }
+    );
+  });
+
+  list.addEventListener('click', function (event) {
+    var button = event.target.closest('[data-issue-action]');
+    if (!button || busy) return;
+    var action = button.getAttribute('data-issue-action');
+    var author = button.getAttribute('data-author');
+    var id = button.getAttribute('data-id');
+    // Deleting takes a second click on "Confirm delete".
+    if (action === 'cancel' || (action === 'delete' && confirming !== author + '/' + id)) {
+      confirming = action === 'cancel' ? '' : author + '/' + id;
+      render();
+      return;
+    }
+    confirming = '';
+    var patch = action === 'delete'
+      ? { deleted: true, text: '', target: '' }
+      : { status: action === 'resolve' ? 'resolved' : 'open' };
+    write(author, id, patch).then(
+      function () { problem = ''; render(); },
+      function (error) { problem = saveError(error); render(); }
+    );
+  });
+
+  tabs.forEach(function (tab) {
+    tab.addEventListener('click', function () {
+      filter.status = tab.getAttribute('data-issue-status');
+      render();
+    });
+  });
+  skillFilter.addEventListener('change', function () {
+    filter.skill = skillFilter.value;
+    render();
+  });
+
+  // A skill card's "open issues" badge opens the log filtered to that skill.
+  document.addEventListener('click', function (event) {
+    var link = event.target.closest('[data-issue-badge] a');
+    if (!link) return;
+    filter.status = 'open';
+    filter.skill = link.parentNode.getAttribute('data-issue-badge');
+    skillFilter.value = filter.skill;
+    render();
+  });
+
+  function readOnly(message) {
+    canPost = false;
+    form.hidden = true;
+    access.textContent = message;
+    access.hidden = false;
+  }
+
+  function unavailable() {
+    readOnly('Open this catalog in claude.ai while signed in to read and post issues.');
+    note.hidden = true;
+  }
+
+  if (!window.claude || typeof window.claude.use !== 'function') {
+    unavailable();
+    return;
+  }
+  Promise.all([window.claude.use('db'), window.claude.use('user')]).then(function (found) {
+    db = found[0];
+    user = found[1];
+    if (!db) {
+      unavailable();
+      return;
+    }
+
+    var who = user ? Promise.all([user.me(), user.can('data.write')]) : Promise.resolve([null, false]);
+    who.then(function (answers) {
+      me = answers[0];
+      // No answer about write access is not a "no": keep the form and let a refused save decide.
+      if (me && me.id && answers[1] !== false) {
+        canPost = true;
+        fields.disabled = false;
+      } else {
+        readOnly('You can read the issues here. To post one, ask the catalog owner for Contributor access.');
+      }
+      render();
+    });
+
+    var slow = setTimeout(function () {
+      problem = 'Still trying to reach the issue log. What is shown may be out of date.';
+      render();
+    }, 10000);
+    db.collection('issues').onSnapshot(
+      function (snap) {
+        issues = collect(snap);
+        loaded = true;
+        if (!snap.metadata.fromCache) {
+          clearTimeout(slow);
+          problem = '';
+        }
+        render();
+      },
+      function (error) {
+        clearTimeout(slow);
+        loaded = true;
+        problem = error && error.code === 'revoked'
+          ? 'The issue log is no longer available in this view.'
+          : 'The issue log stopped updating. Reload the page to reconnect.';
+        render();
+      }
+    );
+  });
+})();
+`;
+
+function renderPage(skills, teams, standards, hosted) {
   const agents = teams.flatMap((t) => t.agents);
   const agentByName = new Map(agents.map((a) => [a.name, a]));
   const agentByTeammate = new Map(agents.map((a) => [a.teammate, a]));
@@ -946,13 +1419,13 @@ function renderPage(skills, teams, standards) {
   const steps = lead ? stripFences(sectionOf(lead.readme, 'Workflow the lead runs')).trim() : '';
   const gates = lead ? sectionOf(lead.readme, 'Gates and caps') : '';
 
+  const issues = renderIssues(skills, hosted);
+  const doc = (id, title, path, md) => docTemplate(id, title, path, renderMarkdown(md), hosted);
   const templates = [
-    ...skills.map((s) => docTemplate(s.id, `/${s.name}`, s.path, renderMarkdown(s.body))),
-    ...agents.map((a) => docTemplate(a.id, a.title, a.path, renderMarkdown(a.body))),
-    ...standards.map((s) => docTemplate(s.id, s.title, s.path, renderMarkdown(s.body))),
-    ...teams
-      .filter((t) => t.readme)
-      .map((t) => docTemplate(t.id, t.title, t.readmePath, renderMarkdown(t.readme.replace(/^#\s+.+\n/, '')))),
+    ...skills.map((s) => doc(s.id, `/${s.name}`, s.path, s.body)),
+    ...agents.map((a) => doc(a.id, a.title, a.path, a.body)),
+    ...standards.map((s) => doc(s.id, s.title, s.path, s.body)),
+    ...teams.filter((t) => t.readme).map((t) => doc(t.id, t.title, t.readmePath, t.readme.replace(/^#\s+.+\n/, ''))),
   ];
 
   const section = (id, title, count, leadText, content, action = '') => `<section class="section" id="${id}" data-section>
@@ -967,18 +1440,7 @@ ${content}
 </div>
 </section>`;
 
-  return `<!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Agents and skills catalog</title>
-<meta name="description" content="The skills, agents, and standards under .claude/ in this repository.">
-<!-- Generated by scripts/build-catalog.mjs from .claude/. Do not edit by hand. -->
-<style>${CSS}</style>
-</head>
-<body id="top">
-<a class="skip-link" href="#main">Skip to content</a>
+  const body = `<a class="skip-link" href="#main">Skip to content</a>
 <header class="site-header">
 <div class="container site-header__inner">
 <a class="site-header__brand" href="#top">UIUX AI Toolkit</a>
@@ -987,7 +1449,9 @@ ${content}
 <li><a class="site-nav__link" href="#workflow">Workflow</a></li>
 <li><a class="site-nav__link" href="#skills">Skills</a></li>
 <li><a class="site-nav__link" href="#agents">Agents</a></li>
-<li><a class="site-nav__link" href="#standards">Standards</a></li>
+<li><a class="site-nav__link" href="#standards">Standards</a></li>${
+    issues ? '\n<li><a class="site-nav__link" href="#issues">Issues</a></li>' : ''
+  }
 </ul>
 </nav>
 <form class="search" role="search">
@@ -1036,7 +1500,7 @@ ${section(
   'Skills',
   skills.length,
   'The commands you type in Claude Code. Each one turns the session into the team lead and follows its playbook.',
-  `<div class="cards">\n${skills.map((s) => renderSkill(s, teams)).join('\n')}\n</div>`,
+  `<div class="cards">\n${skills.map((s) => renderSkill(s, teams, hosted)).join('\n')}\n</div>`,
 )}
 
 ${section(
@@ -1061,12 +1525,16 @@ ${section(
   `<div class="cards">\n${standards.map(renderStandard).join('\n')}\n</div>`,
 )}
 
+${issues}
+
 <p class="empty container" id="catalog-empty" hidden>Nothing matches that filter.</p>
 </main>
 
 <footer class="site-footer">
 <div class="container">
-<p>Generated from <code>.claude/</code> by <code>scripts/build-catalog.mjs</code>. After editing an agent, a skill, or a standard, run <code>node scripts/build-catalog.mjs</code> to rebuild this page.</p>
+<p>Generated from <code>.claude/</code> by <code>scripts/build-catalog.mjs</code>. After editing an agent, a skill, or a standard, run <code>node scripts/build-catalog.mjs</code> to rebuild this page.${
+    hosted ? ' This hosted copy changes when <code>docs/catalog.hosted.html</code> is published again.' : ''
+  }</p>
 </div>
 </footer>
 
@@ -1083,7 +1551,31 @@ ${section(
 
 ${templates.join('\n')}
 
-<script>${JS}</script>
+<script>${JS}</script>${hosted ? `\n<script>${ISSUES_JS}</script>` : ''}`;
+
+  const generated = '<!-- Generated by scripts/build-catalog.mjs from .claude/. Do not edit by hand. -->';
+  // claude.ai wraps a published page in its own document, so the hosted copy is the page
+  // content alone, starting with its title and styles.
+  if (hosted) {
+    return `<title>UIUX AI Toolkit Catalog</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+${generated}
+<style>${CSS}</style>
+${body}
+`;
+  }
+  return `<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Agents and skills catalog</title>
+<meta name="description" content="The skills, agents, and standards under .claude/ in this repository.">
+${generated}
+<style>${CSS}</style>
+</head>
+<body id="top">
+${body}
 </body>
 </html>
 `;
@@ -1097,7 +1589,8 @@ const agents = teams.flatMap((t) => t.agents);
 const standards = loadStandards(agents, skills);
 
 mkdirSync(dirname(OUT_FILE), { recursive: true });
-writeFileSync(OUT_FILE, renderPage(skills, teams, standards));
+writeFileSync(OUT_FILE, renderPage(skills, teams, standards, false));
+writeFileSync(HOSTED_FILE, renderPage(skills, teams, standards, true));
 console.log(
-  `Wrote ${rel(OUT_FILE)}: ${plural(skills.length, 'skill')}, ${plural(agents.length, 'agent')}, ${plural(standards.length, 'standard')}.`,
+  `Wrote ${rel(OUT_FILE)} and ${rel(HOSTED_FILE)}: ${plural(skills.length, 'skill')}, ${plural(agents.length, 'agent')}, ${plural(standards.length, 'standard')}.`,
 );
