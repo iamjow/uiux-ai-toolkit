@@ -1,7 +1,7 @@
 ---
 name: update-ui
 description: Run the UI implementation agent team on a mockup to update a page, section, or component inside an existing project. Same team and gates as /build-ui, in project mode `existing`, so the project's own styling stack, token file, breakpoint approach, and folder structure are followed and no second structure is created. Takes a Figma URL or a mockup image path plus the existing file or directory to update.
-argument-hint: <figma-url | image-path> <what to update and in which existing file or directory> [--mobile <figma-url | image-path>] [--tablet <figma-url | image-path>] [--breakpoints <desktop>,<tablet>,<mobile>] [--png <path>] [--server <url>] [--standards <dir>] [--spec <path>]
+argument-hint: <figma-url | image-path> <what to update and in which existing file or directory> [--mobile <figma-url | image-path>] [--tablet <figma-url | image-path>] [--breakpoints <desktop>,<tablet>,<mobile>]
 disable-model-invocation: true
 ---
 
@@ -40,7 +40,7 @@ Scope: <scope>. Nothing outside it is edited, except a shared token or component
 
 ## 4. Dev server
 
-A page inside a real project usually cannot be opened as a static file. If `--server` is absent and no probed port responds, tell the user in one line that the QA checks will be `static`, which is weaker evidence, and that starting the project's dev server and passing `--server` gives rendered checks. Then continue.
+A page inside a real project usually cannot be opened as a static file. If no probed port responds, tell the user in one line that the QA checks will be `static`, which is weaker evidence, and that starting the project's dev server before the run gives rendered checks. Then continue.
 
 ## 5. Report
 

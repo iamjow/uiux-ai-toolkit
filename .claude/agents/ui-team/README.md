@@ -1,7 +1,7 @@
 # UI team
 
 The six agents in this folder are one agent team that automates the Figma-to-code
-workflow: Figma MCP data and a PNG reference go in, together with the mobile and tablet
+workflow: Figma MCP data or a mockup image goes in, together with the mobile and tablet
 frames the designer hands over in their own Figma sections, HTML + SCSS + JavaScript comes
 out, and nothing is called complete until visual QA, behavior QA, responsive QA, and code
 review all pass.
@@ -96,7 +96,7 @@ PNG reference: <pngPath>
 Breakpoints: desktop <w>px, source <design source> | tablet <w>px, source <figma url, png, or "derived"> | mobile <w>px, source <figma url, png, or "derived">
 Target: <target, for example build/<kebab-frame-name>/>
 Project mode: <new | existing>
-Design spec: <specPath, default .ui-run/<name>/design-spec.md>
+Design spec: <specPath, .ui-run/<name>/design-spec.md>
 Development standard: <standardsDir>/uiux-development-standard.md
 Review standard: <standardsDir>/uiux-code-review-standard.md
 Dev server: <url, or "none, static method">

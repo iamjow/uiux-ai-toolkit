@@ -1,7 +1,7 @@
 ---
 name: build-ui
 description: Run the UI implementation agent team on a mockup. Takes a Figma URL or a mockup image path plus a short description of what to build, optionally the mobile and tablet frames from their own Figma sections, and leads the team (analyst, developer, visual QA, behavior QA, responsive QA, code reviewer) through the QA gate and the code review gate.
-argument-hint: <figma-url | image-path> <what to build and where> [--mobile <figma-url | image-path>] [--tablet <figma-url | image-path>] [--breakpoints <desktop>,<tablet>,<mobile>] [--png <path>] [--server <url>] [--standards <dir>] [--spec <path>]
+argument-hint: <figma-url | image-path> <what to build and where> [--mobile <figma-url | image-path>] [--tablet <figma-url | image-path>] [--breakpoints <desktop>,<tablet>,<mobile>]
 disable-model-invocation: true
 ---
 
@@ -21,22 +21,18 @@ You are the team lead. You spawn the team, put the work on the shared task list,
   - `--mobile <figma-url | image-path>`: the mobile frame of the same screen. Designers hand it over in its own Figma section, so it is never found from the desktop frame; it must be passed here. A Figma URL must include a `node-id`. An image path must exist.
   - `--tablet <figma-url | image-path>`: the tablet frame, same rules.
   - `--breakpoints <desktop>,<tablet>,<mobile>`: viewport widths in px. Default `1440,768,375`. A Figma breakpoint source overrides its entry with the frame's real width once the analyst reports it.
-  - `--png <path>`: PNG reference of the desktop mockup, used alongside a Figma URL. Check that the file exists.
-  - `--server <url>`: dev server URL for rendered QA checks
-  - `--standards <dir>`: folder holding `uiux-development-standard.md` and `uiux-code-review-standard.md`
-  - `--spec <path>`: where the design spec is written. Default `.ui-run/<name>/design-spec.md`.
 
 ## 2. Resolve defaults and prerequisites
 
 - **Team.** This process uses only the agents defined in `.claude/agents/ui-team/`: analyst, developer, visual-qa, behavior-qa, responsive-qa, code-reviewer. Confirm all six files exist there with Glob. If any is missing, tell the user which one and stop. Do not substitute any other agent, including agents defined elsewhere under `.claude/agents/`.
 - **Project mode.** `/build-ui` runs in project mode `new`: a standalone UI built to the development standard in full. `/update-ui` runs this same playbook in project mode `existing` and states its own differences. Write the mode in every spawn brief.
-- **Run folder.** The spec, the fidelity report, and the file-mode task list are run-time files and live in `.ui-run/<name>/` at the project root, never in `.claude/`. `<name>` is the run name: the last folder of the build location in kebab-case (`build/clr-0/` gives `clr-0`), or, when the target is a file, its base name without the extension. One folder per build keeps each build's spec and report; running the same build again overwrites only its own folder. `--spec` moves the spec only; the report and the task list stay in `.ui-run/<name>/`. Tell the user the run folder in one line. Run `git check-ignore -q .ui-run/` in a git project; if it is not ignored, tell the user in one line to add `.ui-run/` to `.gitignore`, and continue.
+- **Run folder.** The spec, the fidelity report, and the file-mode task list are run-time files and live in `.ui-run/<name>/` at the project root, never in `.claude/`. `<name>` is the run name: the last folder of the build location in kebab-case (`build/clr-0/` gives `clr-0`), or, when the target is a file, its base name without the extension. One folder per build keeps each build's spec and report; running the same build again overwrites only its own folder. The spec is always written to `.ui-run/<name>/design-spec.md`. Tell the user the run folder in one line. Run `git check-ignore -q .ui-run/` in a git project; if it is not ignored, tell the user in one line to add `.ui-run/` to `.gitignore`, and continue.
 - **Breakpoint list.** Build it from `--breakpoints` or the default: `desktop <w>`, `tablet <w>`, `mobile <w>`. Attach the source to each: the design source for desktop, `--tablet` and `--mobile` for the others, `derived` for a breakpoint with no source. Tell the user in one line which breakpoints have a frame and which will be derived from section 8 of the development standard. Every breakpoint is built and checked either way.
 - **Agent Teams.** Run `echo $CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS`. If it is not `1`, tell the user to add `"env": {"CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1"}` to `.claude/settings.local.json`, start a new session, and run the command again. Stop. Never fall back to a scripted workflow.
 - **Messaging tools.** Load `SendMessage` and `ListAgents` with ToolSearch (`select:SendMessage,ListAgents`).
 - **Shared task list.** Load the task tools with ToolSearch (`select:TaskCreate,TaskList,TaskUpdate,TaskGet`). If they load, the team uses the shared task list. If they do not, tell the user in one line that adding `"CLAUDE_CODE_ENABLE_TODO_TOOLS": "1"` and `"CLAUDE_CODE_ENABLE_TASKS": "1"` to the same `env` block enables the shared list (the VS Code extension sets the second one to `0`), then continue in **file mode**: you keep the list in `.ui-run/<name>/team-tasks.md` (one line per task: id, title, owner, status, blocked-by), only you write to it, and teammates report status to you by message instead of updating tasks. Say in the spawn brief which mode is in use.
-- **Standards dir.** If `--standards` is absent, use `.claude/standards/` when it holds `uiux-development-standard.md`; otherwise locate that file with Glob and use its folder. If it is not in the project, tell the user the standards must be copied in and stop.
-- **Dev server.** If `--server` is absent, probe the project's usual ports with a short curl: Vite (5173), Laravel (8000), and whatever `vite.config` or `.env` names. Use the first URL that responds. If none responds, say in one line that the QA checks will use the static method, and continue without a server.
+- **Standards dir.** Use `.claude/standards/` when it holds `uiux-development-standard.md`; otherwise locate that file with Glob and use its folder. If it is not in the project, tell the user the standards must be copied in and stop.
+- **Dev server.** Probe the project's usual ports with a short curl: Vite (5173), Laravel (8000), and whatever `vite.config` or `.env` names. Use the first URL that responds. If none responds, say in one line that the QA checks will use the static method, and continue without a server.
 - **Figma.** If any source is a Figma URL, confirm it includes a `node-id`. If not, ask the user to copy the link with the frame selected, and stop.
 - **Caps.** QA gate: at most 3 QA passes per gate (so at most 2 fix passes). Review gate: at most 3 review rounds (so at most 2 review fix rounds).
 
